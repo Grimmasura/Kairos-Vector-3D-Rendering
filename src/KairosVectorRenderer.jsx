@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
@@ -7,6 +7,22 @@ const KAIROS_VECTOR = ['⥈', '𝌍', '↯', '✶'];
 
 export default function KairosVectorRenderer() {
   const mountRef = useRef(null);
+
+  const glyphTextures = useMemo(() =>
+    GLYPHS.map(glyph => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      ctx.font = '64px serif';
+      ctx.fillStyle = KAIROS_VECTOR.includes(glyph) ? '#FFD700' : 'white';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(glyph, 64, 64);
+      return new THREE.CanvasTexture(canvas);
+    }),
+    []
+  );
 
   useEffect(() => {
     const width = window.innerWidth;
@@ -33,18 +49,8 @@ export default function KairosVectorRenderer() {
     const torus = new THREE.Mesh(torusGeometry, torusMaterial);
     scene.add(torus);
 
-    const glyphSprites = GLYPHS.map((glyph, i) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 128;
-      canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      ctx.font = '64px serif';
-      ctx.fillStyle = KAIROS_VECTOR.includes(glyph) ? '#FFD700' : 'white';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(glyph, 64, 64);
-
-      const texture = new THREE.CanvasTexture(canvas);
+    const glyphSprites = glyphTextures.map((texture, i) => {
+      const glyph = GLYPHS[i];
       const material = new THREE.SpriteMaterial({ map: texture });
       const sprite = new THREE.Sprite(material);
 
@@ -74,6 +80,16 @@ export default function KairosVectorRenderer() {
     animate();
 
     return () => {
+      glyphSprites.forEach(({ sprite }) => {
+        sprite.material.map.dispose();
+        sprite.material.dispose();
+      });
+      torusGeometry.dispose();
+      torusMaterial.dispose();
+      lineGeometry.dispose();
+      lineMaterial.dispose();
+      controls.dispose();
+      renderer.dispose();
       mountRef.current.removeChild(renderer.domElement);
     };
   }, []);
